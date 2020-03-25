@@ -1,11 +1,13 @@
 use ansi_term::Colour;
 use dialoguer::{Confirmation, Input};
+use installer::install;
+use structopt::StructOpt;
 use thiserror::Error;
 
 mod run;
 
 mod installer;
-use installer::install;
+mod stages;
 
 #[derive(Debug, Error)]
 pub enum InstallError {
@@ -25,13 +27,52 @@ pub enum InstallError {
     EmptyResponse,
 }
 
+#[derive(StructOpt, Debug)]
+#[structopt(
+    name = "archlinuxinstaller",
+    about = "Well, installs ArchLinux, i guess...",
+    author
+)]
+enum Opt {
+    Install,
+    Stage { name: String },
+    List,
+}
+
 fn main() {
-    note("Starting Archlinux install");
-    match install() {
-        Ok(_) | Err(InstallError::Decline) => {}
-        Err(err) => {
-            error(&format!("installation failed: {}", err));
-            std::process::exit(1);
+    let opt = Opt::from_args();
+    let stages = stages! {};
+
+    match opt {
+        Opt::Install => match install() {
+            Ok(_) | Err(InstallError::Decline) => {}
+            Err(err) => {
+                error(&format!("failed: {}", err));
+                std::process::exit(1);
+            }
+        },
+        Opt::Stage { name: stage } => {
+            if let Some(task) = stages.get(&stage) {
+                // FIXME: this can't be empty for a stage
+                let mut sys_info = stages::SystemInfo::default();
+
+                match task(&mut sys_info) {
+                    Ok(_) | Err(InstallError::Decline) => {}
+                    Err(err) => {
+                        error(&format!("failed: {}", err));
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                error(&format!("there is no stage {}", stage));
+                std::process::exit(1);
+            }
+        }
+        Opt::List => {
+            note("List of all stages:");
+            for name in stages.names() {
+                println!("{}", name);
+            }
         }
     }
 }

@@ -1,13 +1,9 @@
+use crate::stages::SystemInfo;
 use crate::{confirm, InstallError};
 use crate::{note, prompt, run};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-
-struct SystemInfo {
-    boot_disk: PathBuf,
-    system_disk: PathBuf,
-}
 
 pub fn install() -> Result<(), InstallError> {
     let system_info = prepare()?;
