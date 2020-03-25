@@ -1,0 +1,13 @@
+[package]
+name = "archinstaller"
+version = "0.1.0"
+authors = ["erz"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dialoguer = "0.5.0"
+ansi_term = "0.12.1"
+thiserror = "1.0.13"
+duct = "0.13.3"
