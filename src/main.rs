@@ -1,5 +1,5 @@
 use ansi_term::Colour;
-use dialoguer::Confirmation;
+use dialoguer::{Confirmation, Input};
 use thiserror::Error;
 
 mod run;
@@ -11,8 +11,18 @@ use installer::install;
 pub enum InstallError {
     #[error("user declined to continue")]
     Decline,
+
     #[error("io error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("invalid file: {0}")]
+    InvalidFile(String),
+
+    #[error("{0}")]
+    Custom(&'static str),
+
+    #[error("command returned empty response")]
+    EmptyResponse,
 }
 
 fn main() {
@@ -35,6 +45,11 @@ fn confirm(s: &str) -> Result<(), InstallError> {
     } else {
         Err(InstallError::Decline)
     }
+}
+
+fn prompt(s: &str) -> Result<String, InstallError> {
+    let input: String = Input::new().with_prompt(s).interact()?;
+    Ok(input)
 }
 
 fn note(s: &str) {
