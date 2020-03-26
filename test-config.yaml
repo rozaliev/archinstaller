@@ -1,0 +1,11 @@
+[installer]
+system_disk = "sda1"
+boot_disk = "sda1"
+install_disk = "sda"
+
+[stages]
+first_stage = "pre-reboot"
+
+[stages.map]
+pre-reboot = ["prepare","download_base", "base","bootloader"]
+
