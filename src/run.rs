@@ -1,4 +1,5 @@
-use crate::{note, InstallError};
+use crate::utils::*;
+use crate::InstallError;
 use duct::Expression;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};

@@ -1,19 +1,14 @@
-use crate::stages::Stage as Task;
+use crate::tasks::Task;
+use crate::tasks::TASKS;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-lazy_static! {
-    static ref TASKS: HashMap<String, Task> = {
-        let mut m = HashMap::new();
-        m
-    };
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub installer: Installer,
+    pub stages: Stages,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -28,14 +23,40 @@ pub type StagesMap = HashMap<String, Vec<Task>>;
 
 #[derive(Serialize, Deserialize)]
 pub struct Stages {
-    first_stage: String,
+    pub first_stage: String,
     #[serde(with = "stages_map")]
-    map: HashMap<String, Vec<Task>>,
+    pub map: HashMap<String, Vec<Task>>,
+}
+
+impl Default for Config {
+    fn default() -> Config {
+        let mut m = HashMap::new();
+        let s1 = vec![TASKS["prepare"], TASKS["base"]];
+        m.insert("my_stage1".to_string(), s1);
+        let s2 = vec![TASKS["bootloader"]];
+        m.insert("my_stage2".to_string(), s2);
+        Config {
+            installer: Installer {
+                system_disk: "/dev/sdXn".into(),
+                boot_disk: "/dev/sdXn".into(),
+            },
+            stages: Stages {
+                first_stage: "my_first_stage".into(),
+                map: m,
+            },
+        }
+    }
+}
+
+impl Config {
+    pub fn to_string(&self) -> String {
+        toml::to_string(self).unwrap()
+    }
 }
 
 mod stages_map {
     use super::{StagesMap, TASKS};
-    use crate::stages::Stage as Task;
+    use crate::tasks::Task;
     use serde::de::Deserializer;
     use serde::ser::Serializer;
     use serde::{Deserialize, Serialize};
@@ -58,7 +79,12 @@ mod stages_map {
     where
         S: Serializer,
     {
-        unimplemented!()
+        let hm: HashMap<_, Vec<_>> = m
+            .iter()
+            .map(|(k, v)| (k, v.iter().map(|v| Wrapper(*v)).collect()))
+            .collect();
+
+        hm.serialize(serializer)
     }
 
     impl<'de> Deserialize<'de> for Wrapper {

@@ -1,14 +1,16 @@
-use ansi_term::Colour;
-use dialoguer::{Confirmation, Input};
-use installer::install;
+use crate::utils::*;
+use std::fs::File;
+use std::io::Read;
+use std::path::PathBuf;
 use structopt::StructOpt;
 use thiserror::Error;
-
+#[macro_use]
 mod run;
 
 mod config;
 mod installer;
-mod stages;
+mod tasks;
+mod utils;
 
 #[derive(Debug, Error)]
 pub enum InstallError {
@@ -30,38 +32,72 @@ pub enum InstallError {
 
 #[derive(StructOpt, Debug)]
 #[structopt(
-    name = "archlinuxinstaller",
+    name = "ArchLinux installer",
     about = "Well, installs ArchLinux, i guess...",
     author
 )]
 enum Opt {
-    Install,
-    Stage { name: String },
-    List,
+    Install {
+        #[structopt(short, long)]
+        config: PathBuf,
+    },
+    Stage {
+        #[structopt(short, long)]
+        config: PathBuf,
+        name: String,
+    },
+    ListTasks,
+    DefaultConfig,
 }
 
-fn main() {
+fn load_config(path: PathBuf) -> Result<config::Config, std::io::Error> {
+    let mut cfg_file = File::open(&path)?;
+    let mut cfg_str = String::new();
+    cfg_file.read_to_string(&mut cfg_str)?;
+    let config: config::Config = toml::from_str(&cfg_str)?;
+
+    if !config.stages.map.contains_key(&config.stages.first_stage) {
+        error(&format!(
+            "first stage '{}' does not exist",
+            config.stages.first_stage
+        ));
+        std::process::exit(1);
+    }
+
+    Ok(config)
+}
+
+fn main() -> Result<(), std::io::Error> {
     let opt = Opt::from_args();
-    let stages = stages! {};
 
     match opt {
-        Opt::Install => match install() {
-            Ok(_) | Err(InstallError::Decline) => {}
-            Err(err) => {
-                error(&format!("failed: {}", err));
-                std::process::exit(1);
-            }
-        },
-        Opt::Stage { name: stage } => {
-            if let Some(task) = stages.get(&stage) {
-                // FIXME: this can't be empty for a stage
-                let mut sys_info = stages::SystemInfo::default();
-
-                match task(&mut sys_info) {
+        Opt::Install { config } => {
+            let config = load_config(config)?;
+            let first_stage = config.stages.first_stage;
+            let tasks = config.stages.map.get(&first_stage).unwrap();
+            for task in tasks {
+                match task(&config.installer) {
                     Ok(_) | Err(InstallError::Decline) => {}
                     Err(err) => {
                         error(&format!("failed: {}", err));
                         std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Opt::Stage {
+            name: stage,
+            config,
+        } => {
+            let config = load_config(config)?;
+            if let Some(tasks) = config.stages.map.get(&stage) {
+                for task in tasks {
+                    match task(&config.installer) {
+                        Ok(_) | Err(InstallError::Decline) => {}
+                        Err(err) => {
+                            error(&format!("failed: {}", err));
+                            std::process::exit(1);
+                        }
                     }
                 }
             } else {
@@ -69,39 +105,15 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        Opt::List => {
-            note("List of all stages:");
-            for name in stages.names() {
+        Opt::ListTasks => {
+            note("List of all tasks:");
+            for name in tasks::TASKS.keys() {
                 println!("{}", name);
             }
         }
+        Opt::DefaultConfig => {
+            println!("{}", config::Config::default().to_string());
+        }
     }
-}
-
-fn confirm(s: &str) -> Result<(), InstallError> {
-    if Confirmation::new()
-        .with_text(&Colour::Green.bold().paint(s).to_string())
-        .interact()?
-    {
-        Ok(())
-    } else {
-        Err(InstallError::Decline)
-    }
-}
-
-fn prompt(s: &str) -> Result<String, InstallError> {
-    let input: String = Input::new().with_prompt(s).interact()?;
-    Ok(input)
-}
-
-fn note(s: &str) {
-    println!("{} {}", Colour::Yellow.bold().paint("NOTE:"), s);
-}
-
-fn error(s: &str) {
-    eprintln!(
-        "{} {}",
-        Colour::Red.bold().paint("Error:"),
-        Colour::Cyan.paint(s)
-    );
+    Ok(())
 }
