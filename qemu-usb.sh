@@ -1,0 +1,1 @@
+qemu-system-x86_64 -enable-kvm -machine q35 -device intel-iommu -cpu host -cdrom archlinux-2020.03.01-x86_64.iso -boot order=d -drive file=arch-hdd.img,format=raw -m 4G -netdev user,id=n0,smb=/home/erz/Documents/scripts -nic user,id=n0

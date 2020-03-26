@@ -6,6 +6,7 @@ use thiserror::Error;
 
 mod run;
 
+mod config;
 mod installer;
 mod stages;
 
