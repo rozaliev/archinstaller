@@ -1,9 +1,9 @@
+use crate::config::load_config;
 use crate::utils::*;
-use std::fs::File;
-use std::io::Read;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use thiserror::Error;
+
 #[macro_use]
 mod run;
 
@@ -28,6 +28,8 @@ pub enum InstallError {
 
     #[error("command returned empty response")]
     EmptyResponse,
+    #[error("invalid task {0}")]
+    InvalidTask(String),
 }
 
 #[derive(StructOpt, Debug)]
@@ -46,25 +48,13 @@ enum Opt {
         config: PathBuf,
         name: String,
     },
+    Task {
+        #[structopt(short, long)]
+        config: PathBuf,
+        name: String,
+    },
     ListTasks,
     DefaultConfig,
-}
-
-fn load_config(path: PathBuf) -> Result<config::Config, std::io::Error> {
-    let mut cfg_file = File::open(&path)?;
-    let mut cfg_str = String::new();
-    cfg_file.read_to_string(&mut cfg_str)?;
-    let config: config::Config = toml::from_str(&cfg_str)?;
-
-    if !config.stages.map.contains_key(&config.stages.first_stage) {
-        error(&format!(
-            "first stage '{}' does not exist",
-            config.stages.first_stage
-        ));
-        std::process::exit(1);
-    }
-
-    Ok(config)
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -73,10 +63,10 @@ fn main() -> Result<(), std::io::Error> {
     match opt {
         Opt::Install { config } => {
             let config = load_config(config)?;
-            let first_stage = config.stages.first_stage;
-            let tasks = config.stages.map.get(&first_stage).unwrap();
+            let first_stage = &config.stages.first_stage;
+            let tasks = config.stages.map.get(first_stage).unwrap();
             for task in tasks {
-                match task(&config.installer) {
+                match task(&config) {
                     Ok(_) | Err(InstallError::Decline) => {}
                     Err(err) => {
                         error(&format!("failed: {}", err));
@@ -92,7 +82,7 @@ fn main() -> Result<(), std::io::Error> {
             let config = load_config(config)?;
             if let Some(tasks) = config.stages.map.get(&stage) {
                 for task in tasks {
-                    match task(&config.installer) {
+                    match task(&config) {
                         Ok(_) | Err(InstallError::Decline) => {}
                         Err(err) => {
                             error(&format!("failed: {}", err));
@@ -102,6 +92,21 @@ fn main() -> Result<(), std::io::Error> {
                 }
             } else {
                 error(&format!("there is no stage {}", stage));
+                std::process::exit(1);
+            }
+        }
+        Opt::Task { name: task, config } => {
+            let config = load_config(config)?;
+            if let Some(task) = tasks::TASKS.get(&task) {
+                match task(&config) {
+                    Ok(_) | Err(InstallError::Decline) => {}
+                    Err(err) => {
+                        error(&format!("failed: {}", err));
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                error(&format!("there is no task {}", task));
                 std::process::exit(1);
             }
         }

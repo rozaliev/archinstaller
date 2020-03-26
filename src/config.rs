@@ -1,18 +1,24 @@
 use crate::tasks::Task;
 use crate::tasks::TASKS;
-use lazy_static::lazy_static;
+use crate::utils::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub installer: Installer,
     pub stages: Stages,
+    #[serde(default, skip)]
+    pub path: PathBuf,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Installer {
+    #[serde(with = "existing_device_path_from_name")]
+    pub install_disk: PathBuf,
     #[serde(with = "existing_device_path_from_name")]
     pub system_disk: PathBuf,
     #[serde(with = "existing_device_path_from_name")]
@@ -39,11 +45,13 @@ impl Default for Config {
             installer: Installer {
                 system_disk: "/dev/sdXn".into(),
                 boot_disk: "/dev/sdXn".into(),
+                install_disk: "/dev/sdX".into(),
             },
             stages: Stages {
                 first_stage: "my_first_stage".into(),
                 map: m,
             },
+            path: PathBuf::default(),
         }
     }
 }
@@ -52,6 +60,25 @@ impl Config {
     pub fn to_string(&self) -> String {
         toml::to_string(self).unwrap()
     }
+}
+
+pub fn load_config(path: PathBuf) -> Result<Config, std::io::Error> {
+    let mut cfg_file = File::open(&path)?;
+    let mut cfg_str = String::new();
+    cfg_file.read_to_string(&mut cfg_str)?;
+    let mut config: Config = toml::from_str(&cfg_str)?;
+
+    if !config.stages.map.contains_key(&config.stages.first_stage) {
+        error(&format!(
+            "first stage '{}' does not exist",
+            config.stages.first_stage
+        ));
+        std::process::exit(1);
+    }
+
+    config.path = path;
+
+    Ok(config)
 }
 
 mod stages_map {

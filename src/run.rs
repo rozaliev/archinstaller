@@ -1,6 +1,7 @@
 use crate::utils::*;
 use crate::InstallError;
 use duct::Expression;
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -19,14 +20,14 @@ pub struct Wrap(pub Expression);
 
 pub struct WrapWithDescription {
     exp: Expression,
-    description: &'static str,
+    description: String,
 }
 
 impl Wrap {
-    pub fn desc(self, description: &'static str) -> WrapWithDescription {
+    pub fn desc<'a>(self, description: impl Into<Cow<'a, str>>) -> WrapWithDescription {
         WrapWithDescription {
             exp: self.0,
-            description,
+            description: description.into().into_owned(),
         }
     }
 

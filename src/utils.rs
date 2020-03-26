@@ -1,7 +1,9 @@
+use crate::config::Config;
+use crate::tasks::TASKS;
 use crate::InstallError;
 use ansi_term::Colour;
 use dialoguer::{Confirmation, Input};
-use std::fs::{File, OpenOptions};
+use std::fs::{copy, create_dir_all, remove_dir_all, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -26,7 +28,7 @@ pub fn append_to_file(path: impl AsRef<Path>, s: &str) -> Result<(), InstallErro
     note(&format!("appending {} to {:?}", s, path.as_ref()));
 
     let mut file = OpenOptions::new().append(true).open(path)?;
-
+    file.write(b"\n")?;
     file.write_all(s.as_bytes())?;
 
     note("successfully appended");
@@ -53,7 +55,7 @@ pub fn confirm(s: &str) -> Result<(), InstallError> {
     {
         Ok(())
     } else {
-        Err(InstallError::Decline)
+        1rr(InstallError::Decline)
     }
 }
 
@@ -72,4 +74,38 @@ pub fn error(s: &str) {
         Colour::Red.bold().paint("Error:"),
         Colour::Cyan.paint(s)
     );
+}
+
+pub fn with_chroot(config: &Config, task: &str) -> Result<(), InstallError> {
+    if !TASKS.contains_key(task) {
+        return Err(InstallError::InvalidTask(task.to_owned()));
+    }
+
+    let wd = "/mnt/_chroot_install";
+    create_dir_all(wd)?;
+    copy(
+        &config.path,
+        &[wd, "config.yaml"].iter().collect::<PathBuf>(),
+    )?;
+
+    copy(
+        &std::env::current_exe()?,
+        &[wd, "archinstaller"].iter().collect::<PathBuf>(),
+    )?;
+
+    run!(
+        "arch-chroot",
+        "/mnt",
+        "/_chroot_install/archinstaller",
+        "task",
+        task,
+        "--config",
+        "/_chroot_install/config.yaml"
+    )
+    .desc(&format!("chrooting for task {}", task))
+    .run()?;
+
+    remove_dir_all(wd)?;
+
+    Ok(())
 }

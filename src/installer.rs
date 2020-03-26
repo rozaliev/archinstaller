@@ -1,18 +1,22 @@
-use crate::config::Installer;
+use crate::config::Config;
 use crate::utils::*;
 use crate::{confirm, InstallError};
 
-pub fn base(_: &Installer) -> Result<(), InstallError> {
+pub fn download_base(config: &Config) -> Result<(), InstallError> {
     run!("pacstrap", "/mnt", "base", "linux", "linux-firmware")
         .desc("installing essential packages")
-        .run()?;
+        .run()
+}
 
+pub fn base(config: &Config) -> Result<(), InstallError> {
     run!("genfstab", "-U", "/mnt")
         .desc("Generating fstab")
         .to_file("/mnt/etc/fstab")?;
 
-    run!("arch-chroot", "/mnt").desc("chrooting").run()?;
+    with_chroot(config, "base_in_chroot")
+}
 
+pub fn base_in_chroot(config: &Config) -> Result<(), InstallError> {
     run!(
         "ln",
         "-sf",
@@ -37,13 +41,19 @@ pub fn base(_: &Installer) -> Result<(), InstallError> {
     run!("pacman", "--noconfirm", "-S", "intel-ucode")
         .desc("install intel microcode")
         .run()?;
-
     Ok(())
 }
 
-pub fn bootloader(installer: &Installer) -> Result<(), InstallError> {
+pub fn bootloader(config: &Config) -> Result<(), InstallError> {
+    with_chroot(config, "bootloader_in_chroot")
+}
+
+pub fn bootloader_in_chroot(config: &Config) -> Result<(), InstallError> {
+    run!("pacman", "--noconfirm", "-S", "grub")
+        .desc("install grub")
+        .run()?;
     // for bios
-    run!("grub-install", "--target=386-pc", &installer.boot_disk)
+    run!("grub-install", "--debug", &config.installer.install_disk)
         .desc("Install bootloader (Grub) in bios mode")
         .run()?;
 
@@ -53,7 +63,7 @@ pub fn bootloader(installer: &Installer) -> Result<(), InstallError> {
 }
 
 #[must_use]
-pub fn prepare(installer: &Installer) -> Result<(), InstallError> {
+pub fn prepare(config: &Config) -> Result<(), InstallError> {
     confirm("Are you connected to Internet")?;
     confirm("Do you have your disks setup?")?;
 
@@ -66,23 +76,23 @@ pub fn prepare(installer: &Installer) -> Result<(), InstallError> {
     note("Your disks:");
     run!("fdisk", "-l").run()?;
 
-    prompt(&format!(
+    confirm(&format!(
         "using {:?} as boot disk and {:?} as system disk, correct?",
-        installer.boot_disk, installer.system_disk,
+        config.installer.boot_disk, config.installer.system_disk,
     ))?;
 
-    run!("mkfs.ext4", &installer.boot_disk)
+    run!("mkfs.ext4", &config.installer.boot_disk)
         .desc("formatting boot disk")
         .run()?;
-    run!("mkfs.ext4", &installer.system_disk)
+    run!("mkfs.ext4", &config.installer.system_disk)
         .desc("formatting system disk")
         .run()?;
 
     note("mounting disks");
-    run!("mount", &installer.system_disk, "/mnt").run()?;
+    run!("mount", &config.installer.system_disk, "/mnt").run()?;
 
     run!("mkdir", "-p", "/mnt/efi").run()?;
 
-    run!("mount", &installer.boot_disk, "/mnt/efi").run()?;
+    run!("mount", &config.installer.boot_disk, "/mnt/efi").run()?;
     Ok(())
 }
