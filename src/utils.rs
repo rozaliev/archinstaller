@@ -42,7 +42,6 @@ pub fn set_file(path: impl AsRef<Path>, s: &str) -> Result<(), InstallError> {
     let mut file = File::create(path)?;
 
     file.write_all(s.as_bytes())?;
-    file.write_all(s.as_bytes())?;
 
     note("successfully set");
     Ok(())
