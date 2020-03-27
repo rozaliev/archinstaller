@@ -31,12 +31,24 @@ impl Wrap {
         }
     }
 
+    #[must_use]
     pub fn run(self) -> Result<(), InstallError> {
         exec(self.0)
+    }
+
+    #[must_use]
+    pub fn to_string(mut self) -> Result<String, InstallError> {
+        for (key, value) in std::env::vars() {
+            self.0 = self.0.env(key, value);
+        }
+        let output = self.0.stderr_to_stdout().read()?;
+
+        Ok(output)
     }
 }
 
 impl WrapWithDescription {
+    #[must_use]
     pub fn run(self) -> Result<(), InstallError> {
         note(&format!("--- starting  --- {}", self.description));
         exec(self.exp)?;
@@ -44,6 +56,15 @@ impl WrapWithDescription {
         Ok(())
     }
 
+    #[must_use]
+    pub fn run_with_stdin(self, stdin: &[u8]) -> Result<(), InstallError> {
+        note(&format!("--- starting  --- {}", self.description));
+        exec_with_stdin(self.exp, stdin)?;
+        note(&format!("--- done --- {}", self.description));
+        Ok(())
+    }
+
+    #[must_use]
     pub fn to_file(self, path: impl AsRef<Path>) -> Result<(), InstallError> {
         note(&format!("--- starting  --- {}", self.description));
         note(&format!(
@@ -72,6 +93,21 @@ fn exec(mut exp: Expression) -> Result<(), InstallError> {
     Ok(())
 }
 
+#[must_use]
+fn exec_with_stdin(mut exp: Expression, stdin: &[u8]) -> Result<(), InstallError> {
+    for (key, value) in std::env::vars() {
+        exp = exp.env(key, value);
+    }
+
+    let reader = exp.stdin_bytes(stdin).stderr_to_stdout().reader()?;
+    let mut lines = BufReader::new(reader).lines();
+
+    while let Some(line) = lines.next() {
+        println!("{}", line?);
+    }
+
+    Ok(())
+}
 #[must_use]
 fn exec_to_file(mut exp: Expression, path: impl AsRef<Path>) -> Result<(), InstallError> {
     for (key, value) in std::env::vars() {

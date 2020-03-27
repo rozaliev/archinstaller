@@ -28,8 +28,12 @@ pub enum InstallError {
 
     #[error("command returned empty response")]
     EmptyResponse,
+
     #[error("invalid task {0}")]
     InvalidTask(String),
+
+    #[error("no network")]
+    NoNetwork,
 }
 
 #[derive(StructOpt, Debug)]
@@ -54,7 +58,7 @@ enum Opt {
         name: String,
     },
     ListTasks,
-    DefaultConfig,
+    ExampleConfig,
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -124,7 +128,7 @@ fn main() -> Result<(), std::io::Error> {
                 println!("{}", name);
             }
         }
-        Opt::DefaultConfig => {
+        Opt::ExampleConfig => {
             println!("{}", config::Config::default().to_string());
         }
     }

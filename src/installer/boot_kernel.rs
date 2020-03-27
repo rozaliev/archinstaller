@@ -1,6 +1,8 @@
 use crate::config::Config;
 use crate::utils::*;
 use crate::{confirm, InstallError};
+use std::fs::{copy, create_dir_all};
+use std::path::PathBuf;
 
 pub fn download_base(config: &Config) -> Result<(), InstallError> {
     run!("pacstrap", "/mnt", "base", "linux", "linux-firmware")
@@ -48,7 +50,7 @@ pub fn bootloader(config: &Config) -> Result<(), InstallError> {
     with_chroot(config, "bootloader_in_chroot")
 }
 
-pub fn bootloader_in_chroot(config: &Config) -> Result<(), InstallError> {
+pub fn bootloader_in_chroot(_: &Config) -> Result<(), InstallError> {
     run!("pacman", "--noconfirm", "-S", "grub", "efibootmgr")
         .desc("install grub")
         .run()?;
@@ -100,4 +102,24 @@ pub fn prepare(config: &Config) -> Result<(), InstallError> {
 
     run!("mount", &config.installer.boot_disk, "/mnt/efi").run()?;
     Ok(())
+}
+pub fn setup_reboot_user_system(config: &Config) -> Result<(), InstallError> {
+    let wd = "/mnt/root/installer";
+    create_dir_all(wd)?;
+    copy(
+        &config.path,
+        &[wd, "config.yaml"].iter().collect::<PathBuf>(),
+    )?;
+
+    copy(
+        &std::env::current_exe()?,
+        &[wd, "archinstaller"].iter().collect::<PathBuf>(),
+    )?;
+    set_file(
+        "/mnt/root/continue_install.sh",
+        "/root/installer/archinstaller stage user_system --config /root/installer/config.yaml",
+    )
+}
+pub fn reboot(_: &Config) -> Result<(), InstallError> {
+    run!("reboot", "-h", "now").desc("rebooting").run()
 }

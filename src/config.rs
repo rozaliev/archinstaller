@@ -10,11 +10,19 @@ use std::path::PathBuf;
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub installer: Installer,
+    pub user: User,
     pub stages: Stages,
     #[serde(default, skip)]
     pub path: PathBuf,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct User {
+    pub name: String,
+    pub full_name: String,
+    pub email: String,
+    pub hostname: String,
+}
 #[derive(Serialize, Deserialize)]
 pub struct Installer {
     #[serde(with = "existing_device_path_from_name")]
@@ -46,6 +54,12 @@ impl Default for Config {
                 system_disk: "/dev/sdXn".into(),
                 boot_disk: "/dev/sdXn".into(),
                 install_disk: "/dev/sdX".into(),
+            },
+            user: User {
+                name: "your_login".to_string(),
+                full_name: "Full Name".to_string(),
+                email: "my@email.com".to_string(),
+                hostname: "myhost".to_string(),
             },
             stages: Stages {
                 first_stage: "my_first_stage".into(),

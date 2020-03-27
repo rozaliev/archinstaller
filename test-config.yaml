@@ -3,9 +3,40 @@ system_disk = "sda2"
 boot_disk = "sda1"
 install_disk = "sda"
 
+[user]
+name = "erz"
+full_name = "Evgeny Rozaliev"
+email = "rozaliev@gmail.com"
+hostname = "wpc"
+
 [stages]
-first_stage = "pre-reboot"
+first_stage = "boot_kernel"
 
 [stages.map]
-pre-reboot = ["prepare","download_base", "base","bootloader"]
-
+boot_kernel = ["prepare","download_base", "base","bootloader", "setup_reboot_user_system","reboot"]
+user_system = [
+    "set_in_qemu_http_proxy",
+    "systemd_network",
+    "essential_packages",
+    "terminal_packages",
+    "add_user",
+    "generate_ssh_keys",
+    "vga",
+    # "audio",
+    "desktop",
+    # "disable_root_login", 
+    # "power_management",
+    # "clock_sync",
+    # "firewall",
+    "setup_reboot_post_install",
+    "reboot"
+] 
+post_install = [
+    "set_git_user", 
+    "desktop_packages",
+    "codecs",
+    "firefox_1password",
+    "github",
+    "setup_dotfiles",
+    "vpn",
+]
