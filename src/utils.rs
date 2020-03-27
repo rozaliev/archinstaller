@@ -51,11 +51,12 @@ pub fn set_file(path: impl AsRef<Path>, s: &str) -> Result<(), InstallError> {
 pub fn confirm(s: &str) -> Result<(), InstallError> {
     if Confirmation::new()
         .with_text(&Colour::Green.bold().paint(s).to_string())
+        .show_default(true)
         .interact()?
     {
         Ok(())
     } else {
-        1rr(InstallError::Decline)
+        Err(InstallError::Decline)
     }
 }
 

@@ -67,7 +67,11 @@ fn main() -> Result<(), std::io::Error> {
             let tasks = config.stages.map.get(first_stage).unwrap();
             for task in tasks {
                 match task(&config) {
-                    Ok(_) | Err(InstallError::Decline) => {}
+                    Ok(_) => {}
+                    Err(InstallError::Decline) => {
+                        note("installation stopped by user");
+                        return Ok(());
+                    }
                     Err(err) => {
                         error(&format!("failed: {}", err));
                         std::process::exit(1);
@@ -83,7 +87,11 @@ fn main() -> Result<(), std::io::Error> {
             if let Some(tasks) = config.stages.map.get(&stage) {
                 for task in tasks {
                     match task(&config) {
-                        Ok(_) | Err(InstallError::Decline) => {}
+                        Ok(_) => {}
+                        Err(InstallError::Decline) => {
+                            note("installation stopped by user");
+                            return Ok(());
+                        }
                         Err(err) => {
                             error(&format!("failed: {}", err));
                             std::process::exit(1);
