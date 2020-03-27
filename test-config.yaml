@@ -1,5 +1,5 @@
 [installer]
-system_disk = "sda1"
+system_disk = "sda2"
 boot_disk = "sda1"
 install_disk = "sda"
 

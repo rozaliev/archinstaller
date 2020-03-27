@@ -49,13 +49,18 @@ pub fn bootloader(config: &Config) -> Result<(), InstallError> {
 }
 
 pub fn bootloader_in_chroot(config: &Config) -> Result<(), InstallError> {
-    run!("pacman", "--noconfirm", "-S", "grub")
+    run!("pacman", "--noconfirm", "-S", "grub", "efibootmgr")
         .desc("install grub")
         .run()?;
-    // for bios
-    run!("grub-install", "--debug", &config.installer.install_disk)
-        .desc("Install bootloader (Grub) in bios mode")
-        .run()?;
+    run!(
+        "grub-install",
+        "--debug",
+        "--target=x86_64-efi",
+        "--efi-directory=/efi",
+        "--bootloader-id=GRUB"
+    )
+    .desc("Install bootloader (Grub) in UEFI mode")
+    .run()?;
 
     run!("grub-mkconfig", "-o", "/boot/grub/grub.cfg")
         .desc("Generating grub config")
@@ -81,7 +86,7 @@ pub fn prepare(config: &Config) -> Result<(), InstallError> {
         config.installer.boot_disk, config.installer.system_disk,
     ))?;
 
-    run!("mkfs.ext4", &config.installer.boot_disk)
+    run!("mkfs.fat", "-F32", &config.installer.boot_disk)
         .desc("formatting boot disk")
         .run()?;
     run!("mkfs.ext4", &config.installer.system_disk)
