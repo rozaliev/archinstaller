@@ -14,8 +14,12 @@ jobs:
         with:
             toolchain: nightly
             override: true
-      - name: Generate the artifacts
-        uses: skx/github-action-build@master
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+      - name: tar
+        run: tar -czvf latest.tar.gz test-config.yaml -C target/release archinstaller
       - name: Upload the artifacts
         uses: skx/github-action-publish-binaries@master
         env:
