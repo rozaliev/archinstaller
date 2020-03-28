@@ -4,7 +4,7 @@ use crate::{confirm, InstallError};
 use std::fs::{copy, create_dir_all};
 use std::path::PathBuf;
 
-pub fn download_base(config: &Config) -> Result<(), InstallError> {
+pub fn download_base(_: &Config) -> Result<(), InstallError> {
     run!("pacstrap", "/mnt", "base", "linux", "linux-firmware")
         .desc("installing essential packages")
         .run()
@@ -18,7 +18,7 @@ pub fn base(config: &Config) -> Result<(), InstallError> {
     with_chroot(config, "base_in_chroot")
 }
 
-pub fn base_in_chroot(config: &Config) -> Result<(), InstallError> {
+pub fn base_in_chroot(_: &Config) -> Result<(), InstallError> {
     run!(
         "ln",
         "-sf",
@@ -54,23 +54,35 @@ pub fn bootloader(config: &Config) -> Result<(), InstallError> {
     with_chroot(config, "bootloader_in_chroot")
 }
 
-pub fn bootloader_in_chroot(_: &Config) -> Result<(), InstallError> {
-    run!("pacman", "--noconfirm", "-S", "grub", "efibootmgr")
-        .desc("install grub")
-        .run()?;
-    run!(
-        "grub-install",
-        "--debug",
-        "--target=x86_64-efi",
-        "--efi-directory=/efi",
-        "--bootloader-id=GRUB"
-    )
-    .desc("Install bootloader (Grub) in UEFI mode")
-    .run()?;
+pub fn bootloader_in_chroot(config: &Config) -> Result<(), InstallError> {
+    run!("pacman", "--noconfirm", "-S", "efibootmgr").run()?;
 
-    run!("grub-mkconfig", "-o", "/boot/grub/grub.cfg")
-        .desc("Generating grub config")
-        .run()
+    run!("bootctl", "--path=/boot", "install")
+        .desc("installing systemd-boot")
+        .run()?;
+
+    set_file(
+        "/boot/loader/loader.conf",
+        "timeout 3
+console-mode keep
+default arch.conf
+editor=no",
+    )?;
+
+    set_file(
+        "/boot/loader/entries/arch.conf",
+        &format!(
+            r#"title Arch Linux
+linux /vmlinuz-linux
+initrd /intel-ucode.img
+initrd /initramfs-linux.img
+options root="{}" rw
+"#,
+            config.installer.system_disk.to_str().expect("system disk has to be valid utf8")
+        ),
+    )?;
+
+    Ok(())
 }
 
 #[must_use]
@@ -102,9 +114,9 @@ pub fn prepare(config: &Config) -> Result<(), InstallError> {
     note("mounting disks");
     run!("mount", &config.installer.system_disk, "/mnt").run()?;
 
-    run!("mkdir", "-p", "/mnt/efi").run()?;
+    run!("mkdir", "-p", "/mnt/boot").run()?;
 
-    run!("mount", &config.installer.boot_disk, "/mnt/efi").run()?;
+    run!("mount", &config.installer.boot_disk, "/mnt/boot").run()?;
     Ok(())
 }
 pub fn setup_reboot_user_system(config: &Config) -> Result<(), InstallError> {
