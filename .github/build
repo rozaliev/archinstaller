@@ -1,0 +1,2 @@
+cargo build --verbose --release
+tar -czvf latest.tar.gz test-config.yaml -C target/release archinstaller
