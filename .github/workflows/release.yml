@@ -8,7 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@master
+        uses: actions/checkout@v2
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            override: true
       - name: Generate the artifacts
         uses: skx/github-action-build@master
       - name: Upload the artifacts
