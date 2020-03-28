@@ -63,12 +63,29 @@ pub fn essential_packages(_: &Config) -> Result<(), InstallError> {
     Ok(())
 }
 pub fn vga(_: &Config) -> Result<(), InstallError> {
-    run!("pacman", "--noconfirm", "-S", "xf86-video-vesa")
-        .desc("install packages")
-        .run()
+    if run!("lspci").to_string()?.contains("NVIDIA") {
+        run!("pacman", "--noconfirm", "-S", "nvidia", "nvidia-settings")
+            .desc("install Nvidia drivers")
+            .run()
+    } else {
+        run!("pacman", "--noconfirm", "-S", "xf86-video-vesa")
+            .desc("install generic VGA driver")
+            .run()
+    }
 }
 pub fn audio(_: &Config) -> Result<(), InstallError> {
-    unimplemented!()
+    run!(
+        "pacman",
+        "--noconfirm",
+        "-S",
+        "pulseaudio",
+        "pulseaudio-alsa",
+        "pavucontrol"
+    )
+    .desc("install packages")
+    .run()?;
+
+    Ok(())
 }
 
 pub fn terminal_packages(_: &Config) -> Result<(), InstallError> {
@@ -84,16 +101,17 @@ pub fn terminal_packages(_: &Config) -> Result<(), InstallError> {
         "bat",
         "ttf-fira-code",
         "hexyl",
-        "rustup",
         "broot",
         "fd",
         "ripgrep"
-
     )
     .desc("install packages")
     .run()?;
 
-     Ok(())
+    Ok(())
+}
+pub fn codecs(_: &Config) -> Result<(), InstallError> {
+    Ok(())
 }
 pub fn desktop(_: &Config) -> Result<(), InstallError> {
     run!(
@@ -118,7 +136,54 @@ pub fn desktop(_: &Config) -> Result<(), InstallError> {
 
     Ok(())
 }
+pub fn setup_dotfiles(config: &Config) -> Result<(), InstallError> {
+    run!(
+        "git",
+        "clone",
+        "--bare",
+        "https://github.com/rozaliev/dotfiles.git",
+        format!("/home/{}/dotfiles", config.user.name)
+    )
+    .desc("cloning dotfiles")
+    .run()?;
 
+    run!(
+        "git",
+        format!("--git-dir=/home/{}/dotfiles", config.user.name),
+        format!("--work-tree=/home/{}", config.user.name),
+        "checkout"
+    )
+    .desc("checking out dotfiles")
+    .run()?;
+    Ok(())
+}
+pub fn desktop_packages(_: &Config) -> Result<(), InstallError> {
+    run!(
+        "pacman",
+        "--noconfirm",
+        "-S",
+        "firefox",
+        "transmission-gtk",
+        "telegram-desktop",
+        "vlc"
+    )
+    .desc("install packages")
+    .run()?;
+    run!(
+        "pacman",
+        "--noconfirm",
+        "-S",
+        "xorg-fonts-type1",
+        "ttf-dejavu",
+        "font-bh-ttf",
+        "ttf-liberation",
+        "ttf-freefont"
+    )
+    .desc("install fonts")
+    .run()?;
+
+    Ok(())
+}
 pub fn add_user(config: &Config) -> Result<(), InstallError> {
     run!(
         "useradd",
@@ -143,9 +208,7 @@ pub fn add_user(config: &Config) -> Result<(), InstallError> {
 
     Ok(())
 }
-pub fn cleanup_reboot_hook(config: &Config) -> Result<(), InstallError> {
-    remove_file("/root/.bashrc")?;
-
+pub fn cleanup_reboot_hook(_: &Config) -> Result<(), InstallError> {
     Ok(())
 }
 
@@ -169,16 +232,25 @@ pub fn generate_ssh_keys(config: &Config) -> Result<(), InstallError> {
     .run()
 }
 pub fn disable_root_login(_: &Config) -> Result<(), InstallError> {
-    unimplemented!()
+    run!("passwd", "-l", "root").run()
 }
 pub fn power_management(_: &Config) -> Result<(), InstallError> {
-    unimplemented!()
-}
-pub fn clock_sync(_: &Config) -> Result<(), InstallError> {
-    unimplemented!()
+    run!("pacman", "--noconfirm", "-S", "xfce4-power-manager")
+        .desc("install power management tools")
+        .run()?;
+
+    Ok(())
 }
 pub fn firewall(_: &Config) -> Result<(), InstallError> {
-    unimplemented!()
+    run!("pacman", "--noconfirm", "-S", "nftables")
+        .desc("install nftables")
+        .run()?;
+
+    run!("systemctl", "enable", "nftables.service")
+        .desc("enabling nftables service")
+        .run()?;
+
+    Ok(())
 }
 pub fn setup_reboot_post_install(config: &Config) -> Result<(), InstallError> {
     create_dir_all(format!("/home/{}/installer", config.user.name))?;

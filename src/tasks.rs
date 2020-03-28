@@ -32,22 +32,20 @@ lazy_static! {
         t!(m, vga);
         t!(m, audio);
         t!(m, desktop);
+        t!(m, desktop_packages);
+        t!(m, setup_dotfiles);
+        t!(m, codecs);
         t!(m, terminal_packages);
         t!(m, add_user);
         t!(m, generate_ssh_keys);
         t!(m, disable_root_login);
         t!(m, power_management);
-        t!(m, clock_sync);
         t!(m, firewall);
         t!(m, setup_reboot_post_install);
 
         // post install
         t!(m, set_git_user);
-        t!(m, desktop_packages);
-        t!(m, codecs);
-        t!(m, firefox_1password);
-        t!(m, github);
-        t!(m, setup_dotfiles);
+        t!(m, rust_packages);
         t!(m, vpn);
 
         m

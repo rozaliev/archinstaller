@@ -28,6 +28,10 @@ pub fn base_in_chroot(config: &Config) -> Result<(), InstallError> {
     .desc("setting timezone")
     .run()?;
 
+    run!("timedatectl", "set-ntp", "true")
+        .desc("enable ntp")
+        .run()?;
+
     run!("hwclock", "--systohc")
         .desc("setting Hardware Clock from Software Clock")
         .run()?;
@@ -118,7 +122,11 @@ pub fn setup_reboot_user_system(config: &Config) -> Result<(), InstallError> {
     set_file(
         "/mnt/root/continue_install.sh",
         "/root/installer/archinstaller stage user_system --config /root/installer/config.yaml",
-    )
+    )?;
+
+    run!("chmod", "+x", "/mnt/root/continue_install.sh").run()?;
+
+    Ok(())
 }
 pub fn reboot(_: &Config) -> Result<(), InstallError> {
     run!("reboot", "-h", "now").desc("rebooting").run()

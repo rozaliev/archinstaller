@@ -34,6 +34,11 @@ pub enum InstallError {
 
     #[error("no network")]
     NoNetwork,
+
+    #[error("cant join paths {0}")]
+    JoinPathError(#[from] std::env::JoinPathsError)
+
+
 }
 
 #[derive(StructOpt, Debug)]
@@ -51,6 +56,9 @@ enum Opt {
         #[structopt(short, long)]
         config: PathBuf,
         name: String,
+
+        #[structopt(short, long)]
+        from: Option<String>
     },
     Task {
         #[structopt(short, long)]
@@ -85,7 +93,7 @@ fn main() -> Result<(), std::io::Error> {
         }
         Opt::Stage {
             name: stage,
-            config,
+            config, ..
         } => {
             let config = load_config(config)?;
             if let Some(tasks) = config.stages.map.get(&stage) {
